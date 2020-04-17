@@ -34,7 +34,7 @@
 #elif (__PROJECT_LIGHT_8269__)
 	#include "../light_8269/light.h"
 #elif (__PROJECT_LIGHT_8258__)
-	#include "../light_8258/light.h"
+	#include "light.h"
 #elif (__PROJECT_LIGHT_8267_UART__)
 	#include "../light_8267_uart/light.h"
 #elif (__PROJECT_LIGHT_GATEWAY__)

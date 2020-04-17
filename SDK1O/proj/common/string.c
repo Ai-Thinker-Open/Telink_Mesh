@@ -149,6 +149,46 @@ int strcmp(const char* firstString, const char* secondString) {
 	return 1;
 }
 
+int strxcmp(const char* firstString, const char* secondString) {
+	while (*firstString == *secondString) {
+		if (*firstString == '\0') {
+			return 0;
+		}
+		++firstString;
+		++secondString;
+	}
+	
+	if (*firstString == '\0') return 0;
+
+	if (((unsigned char) *firstString - (unsigned char) *secondString) < 0) {
+		return -1;
+	}
+	return 1;
+}
+
+char *strstr(const char* src, const char *sub)
+{
+    if(src ==0 || 0 == sub)
+    {
+        return (char*)src;
+    }
+    
+    const char *bp=src;
+    const char *sp=sub;
+    
+    while(*src)
+    {
+        bp=src;
+        sp=sub;
+        do{
+            if(!*sp)
+                return (char*)src;
+            }while(*bp++==*sp++);
+        src+=1;
+    }  
+    return 0;
+}
+
 char * strncpy(char *s, const char *t, unsigned int n) {
 	char *p = s;
 	unsigned int i = 0;
