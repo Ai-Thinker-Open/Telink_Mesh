@@ -367,3 +367,80 @@ void kick_out(u8 par){
     rf_led_ota_ok();
 }
 
+
+#define MESH_PAIR_ADDR flash_adr_pairing
+#define MESH_NAME_ADDR flash_adr_pairing + 16
+#define MESH_PWD_ADDR  flash_adr_pairing + 32
+#define MESH_LTK_ADDR flash_adr_pairing + 48
+
+//获取Mesh Name
+int get_mesh_name(char *out)
+{
+	u8 buff[16];
+	flash_read_page(MESH_NAME_ADDR, 16, out);
+	return 0;
+}
+
+//设置Mesh Name
+int set_mesh_name(char * mesh_Name)
+{
+	u8 buff[16];
+	flash_read_page(MESH_PWD_ADDR, 16, buff); //读取MeshPwd
+
+	flash_erase_sector(MESH_PAIR_ADDR); //擦除整个扇区
+
+	flash_write_page (MESH_PWD_ADDR, 16, buff); //写回MeshPwd
+
+
+	memset (buff, 0, 16);
+	extern u8 pair_config_mesh_ltk[];
+	memcpy (buff, pair_config_mesh_ltk, 16);
+	flash_write_page (MESH_LTK_ADDR, 16, buff); //写回XX数据
+
+	flash_write_page (MESH_NAME_ADDR, 16, mesh_Name); //设置MeshName
+
+	memset (buff, 0, 16);
+	buff[0] = PAIR_VALID_FLAG;
+	if(pair_config_pwd_encode_enable){
+		buff[15] = PAIR_VALID_FLAG;
+	}
+	if(mesh_pair_enable){
+		get_mac_en = 1;
+		buff[1] = get_mac_en;
+	}
+	flash_write_page (MESH_PAIR_ADDR, 16, buff);//写回扇区头标记
+}
+
+
+//设置Mesh Password
+int set_mesh_pwd(char * meshPwd)
+{
+	u8 buff[16];
+	flash_read_page(MESH_NAME_ADDR, 16, buff); //读取MeshName
+
+	flash_erase_sector(MESH_PAIR_ADDR); //擦除整个扇区
+
+	flash_write_page (MESH_NAME_ADDR, 16, buff); //写回MeshName
+
+	memset (buff, 0, 16);
+	extern u8 pair_config_mesh_ltk[];
+	memcpy (buff, pair_config_mesh_ltk, 16);
+	flash_write_page (MESH_LTK_ADDR, 16, buff); //写回XX数据
+
+	memset (buff, 0, 16);
+	memcpy (buff, meshPwd, 16);
+	encode_password(buff);
+	flash_write_page (MESH_PWD_ADDR, 16, buff);
+
+	memset (buff, 0, 16);
+	buff[0] = PAIR_VALID_FLAG;
+	if(pair_config_pwd_encode_enable){
+		buff[15] = PAIR_VALID_FLAG;
+	}
+	if(mesh_pair_enable){
+		get_mac_en = 1;
+		buff[1] = get_mac_en;
+	}
+	flash_write_page (MESH_PAIR_ADDR, 16, buff);//写回扇区头标记
+}
+

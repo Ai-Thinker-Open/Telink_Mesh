@@ -31,6 +31,7 @@
 #include "vendor/common/scene.h"
 #include "proj_lib/ble_ll/blueLight.h"
 #include "proj/mcu/register.h"
+#include "proj/common/u_printf.h"
 
 #define LED_INDICATE_VAL    (0xff)
 
@@ -40,13 +41,6 @@
 #define LIGHT_ADJUST_STEP_EN    1
 #endif
 #define LIGHT_NOTIFY_MESH_EN    0
-
-#if(BQB_EN)
-#include "../bqb/phytest.h"
-
-#define	rega_bqb_reboot	(0x3a)
-#define BQB_MODE_FLAG	(0xab)
-#endif
 
 FLASH_ADDRESS_EXTERN;
 
@@ -248,13 +242,6 @@ _attribute_ram_code_ void irq_handler(void)
 	irq_light_slave_handler ();
 
 	at_uart_irq();
-
-#if (I2C_HW_MODOULE_EN && I2C_IRQ_EN)
-    I2C_IrqSrc i2c_src = I2C_SlaveIrqGet();
-    if(I2C_IRQ_NONE != i2c_src){
-        I2C_SlaveIrqClr(i2c_src);
-    }
-#endif
 }
 
 void irq_timer0(void){
@@ -850,6 +837,8 @@ void rf_link_data_callback (u8 *p)
 {
     // p start from l2capLen of rf_packet_att_cmd_t
 	if(p_vendor_rf_link_data_callback){
+
+		// at_print_hexstr(p,32);
 		p_vendor_rf_link_data_callback(p);
 		return;
 	}
@@ -861,283 +850,14 @@ void rf_link_data_callback (u8 *p)
     rf_packet_att_value_t *pp = (rf_packet_att_value_t*)(((ll_packet_l2cap_data_t*)(p))->value);
     rf_link_get_op_para(p, op_cmd, &op_cmd_len, params, &params_len, 1);
 
-    if(op_cmd_len == op_type_1){
-    }else if(op_cmd_len == op_type_2){
-    }else if(op_cmd_len == op_type_3){
-        u16 vendor_id = op_cmd[2] << 8 | op_cmd[1];
-        op = op_cmd[0] & 0x3F;
-        if(vendor_id == VENDOR_ID){
-        	if(op == LGT_CMD_LIGHT_ONOFF){
-        		if(cmd_left_delay_ms){
-        			return;
-        		}
-        		cmd_delay_ms = params[1] | (params[2] << 8);
-        		if(cmd_delay_ms && !irq_timer1_cb_time){
-        			u16 cmd_delayed_ms = light_cmd_delayed_ms(pp->val[op_cmd_len+params_len]);
-        			if(cmd_delay_ms > cmd_delayed_ms){
-        				memcpy(&cmd_delay, p, sizeof(ll_packet_l2cap_data_t));
-        				cmd_left_delay_ms = cmd_delay_ms - cmd_delayed_ms;
-        				irq_timer1_cb_time = clock_time();
-        				return;
-        			}
-        		}
-        	}
-        	
-            mesh_ota_timeout_handle(op, params);
-#if(WORK_SLEEP_EN)
-			extern u32 last_rcv_hb_time;
-			extern u8 hb_timeout_pre;
-			last_rcv_hb_time = clock_time() | 1;
-			hb_timeout_pre = 0;
-#endif
+	char ppbuf[128] = { 0 };
 
-            if(op == LGT_CMD_LIGHT_ONOFF){
-                if(params[0] == LIGHT_ON_PARAM){
-            		light_onoff(1);
-        		}else if(params[0] == LIGHT_OFF_PARAM){
-        		    if(ON_OFF_FROM_OTA == params[3]){ // only PWM off, 
-        		        light_adjust_RGB(0, 0, 0, 0);
-        		    }else{
-            		    light_onoff(0);
-            		}
-        		}else if(params[0] == LIGHT_SYNC_REST_PARAM){
-                    #if (SYNC_TIME_EN)
-                    sync_time_reset();
-            		#endif
-        		}
-            }
-#if (SYNC_TIME_EN)
-            else if(op == LGT_CMD_TIME_SYNC){    // don't modify, internal use
-                u16 cmd_delayed_ms = light_cmd_delayed_ms(pp->val[op_cmd_len+params_len]);
-                if(sync_time_callback(params, cmd_delayed_ms, IRQ_TIME1_INTERVAL, p)){
-                    return ;
-                }
-            }
-#endif        	
-            else if (op == LGT_CMD_LIGHT_CONFIG_GRP){
-        		u16 val = (params[1] | (params[2] << 8));
-        		if(params[0] == LIGHT_DEL_GRP_PARAM){
-        			extern u8 rf_link_del_group(u16 group);
-        			if(rf_link_del_group(val)){
-        			    cfg_led_event(LED_EVENT_FLASH_1HZ_4S);
-        			}
-        		}else if(params[0] == LIGHT_ADD_GRP_PARAM){
-        			extern u8 rf_link_add_group(u16 group);
-        			if(rf_link_add_group(val)){
-        			    cfg_led_event(LED_EVENT_FLASH_1HZ_4S);
-        			}
-        		}
-        	}else if (op == LGT_CMD_CONFIG_DEV_ADDR){
-        		u16 val = (params[0] | (params[1] << 8));
-    			extern u8 rf_link_add_dev_addr(u16 deviceaddress);
-    			if(!dev_addr_with_mac_flag(params) || dev_addr_with_mac_match(params)){
-    				if(rf_link_add_dev_addr(val)){
-						mesh_pair_proc_get_mac_flag();
-					}
-    			}
-        	}else if(op == LGT_CMD_LIGHT_SET){
-        	    if(music_time){
-        	        last_music_tick = clock_time();
-        	    }
-        	    if(light_off){
-        	        return;
-        	    }
-        	    if(params[0] == 0xFE){
-        	        // start music
-        	        led_lum_tmp = led_lum;
-        	        music_time = 1;
-        	    }else if(params[0] == 0xFF){
-        	        // stop music
-        	        led_lum = led_lum_tmp;
-        	        music_time = 0;
-        	    }else if(params[0] > 100 || is_lum_invalid(params[0]) || led_lum == params[0]){
-                    return;
-                }else{
-                    led_lum = params[0];
-                }
-                light_adjust_RGB(led_val[0], led_val[1], led_val[2], led_lum);
-                if(!music_time){
-                    lum_changed_time = clock_time();
-                    device_status_update();
-                }
-            }
-            else if(op == LGT_CMD_LIGHT_RC_SET_RGB){
-        		if(light_off || params[0] > RGB_MAP_MAX){
-        			return;
-        		}
-        		table_map_idx = params[0];
-        	    led_val[0] = rgb_map[table_map_idx][0];
-        	    led_val[1] = rgb_map[table_map_idx][1];
-        	    led_val[2] = rgb_map[table_map_idx][2];
-        	    
-                light_adjust_RGB(led_val[0], led_val[1], led_val[2], led_lum);
-                
-                lum_changed_time = clock_time();
-            }
-        	else if (op == LGT_CMD_SET_RGB_VALUE)
-        	{
-        	    if(light_off){
-        	        return;
-        	    }
-        		if(params[0] == 1){		        //R
-        		    led_val[0] = params[1];
-                    light_adjust_R (led_val[0], led_lum);
-        		}else if(params[0] == 2){		//G
-        		    led_val[1] = params[1];
-                    light_adjust_G (led_val[1], led_lum);
-        		}else if(params[0] == 3){		//B
-        		    led_val[2] = params[1];
-                    light_adjust_B (led_val[2], led_lum);
-        		}else if(params[0] == 4){		//RGB
-        		    led_val[0] = params[1];
-        		    led_val[1] = params[2];
-        		    led_val[2] = params[3];
-        		    light_adjust_RGB(led_val[0], led_val[1], led_val[2], led_lum);
-        		}else if(params[0] == 5){		//CT
-        		    //temporary processing as brightness
-                    if(light_off || params[1] > 100 || led_lum == params[1]){
-                        return;
-                    }
-                    led_lum = params[1];
-                    light_adjust_RGB(led_val[0], led_val[1], led_val[2], led_lum);
-        		}
-        		
-                lum_changed_time = clock_time();
-        	}
-        	else if (op == LGT_CMD_KICK_OUT)
-        	{
-        		if(is_mesh_cmd_need_delay(p, params, pp->val[op_cmd_len+params_len])){
-        			return ;
-        		}
-        	    irq_disable();
-        	    void kick_out(u8 par);
-        	    kick_out(params[0]);
-        	    light_sw_reboot();
-        	}
-#if(ALARM_EN)
-        	else if (op == LGT_CMD_SET_TIME)
-        	{
-                rtc_t rtc_old, rtc_new;
-                memcpy(&rtc_old, &rtc, sizeof(rtc_t));
-        	    memcpy(&rtc_new.year, params, 7);
-        	    if(0 == rtc_set_time((rtc_t *)params)){
-        	        //ok
-        	        check_event_after_set_time(&rtc_new, &rtc_old);
-                    cfg_led_event(LED_EVENT_FLASH_1HZ_3T);
-        	    }else{
-        	        //invalid params
-                    cfg_led_event(LED_EVENT_FLASH_4HZ_3T);
-        	    }
-        	}
-        	else if (op == LGT_CMD_ALARM)
-        	{
-        	    if(0 == alarm_ev_callback((u8*)params)){
-                    cfg_led_event(LED_EVENT_FLASH_1HZ_3T);
-        	    }else{
-                    cfg_led_event(LED_EVENT_FLASH_4HZ_3T);
-        	    }
-        	}
-#endif        	
-#if(SCENE_EN)
-        	else if (op == LGT_CMD_SET_SCENE)
-        	{
-        	    if(params[0] == SCENE_ADD){
-        	        // add scene: params valid & no repetition
-        	        scene_t *pData = (scene_t*)(params+1);
-        	        if(pData->id && pData->lum <= 100 
-            	            && pData->rgb[0] <= 0xFF
-            	            && pData->rgb[1] <= 0xFF
-            	            && pData->rgb[2] <= 0xFF){
-                        if(scene_add(pData)){
-                            cfg_led_event(LED_EVENT_FLASH_1HZ_3T);
-                        }
-        	        }
-        	            
-        	    }else if(params[0] == SCENE_DEL){
-        	        // del scene
-        	        if(scene_del(params[1])){
-                        cfg_led_event(LED_EVENT_FLASH_1HZ_3T);
-        	        }
-        	    }
-        	}
-        	else if (op == LGT_CMD_LOAD_SCENE)
-        	{
-        	    scene_load(params[0]);
-        	}
-#endif
-#if 1 // (LIGHT_NOTIFY_MESH_EN)
-            else if (op == LGT_CMD_NOTIFY_MESH)
-            {
-                light_notify(pp->val+3, 10, pp->src);
-            }
-#endif        	
-            else if (op == LGT_CMD_MESH_OTA_DATA)
-            {
-                u16 idx = params[0] + (params[1] << 8);
-                if(!is_master_ota_st()){  // no update firmware for itself
-                    if(CMD_START_MESH_OTA == idx){
-                        mesh_ota_master_start_firmware_from_own();
-                        //cfg_led_event(LED_EVENT_FLASH_1HZ_4S);
-                    }else if(CMD_STOP_MESH_OTA == idx){
-                        if(is_mesh_ota_slave_running()){
-                            // reboot to initial flash: should be delay to relay command.
-                            mesh_ota_slave_reboot_delay();  // reboot after 320ms
-                        }
-                    }else{
-                        if(mesh_ota_slave_save_data(params)){
-                            static u16 mesh_ota_error_cnt;
-                            mesh_ota_error_cnt++;
-                        }
-                    }
-                }else{
-                    if(CMD_STOP_MESH_OTA == idx){
-                        mesh_ota_master_cancle(OTA_STATE_MASTER_OTA_REBOOT_ONLY, 0);
-                        //cfg_led_event(LED_EVENT_FLASH_4HZ_3T);
-                    }
-                }
-            }
-#if(MESH_PAIR_ENABLE)
-            else if (op == LGT_CMD_MESH_PAIR)
-            {
-                mesh_pair_cb(params);
-            }
-#endif
-#if(WORK_SLEEP_EN)
-			else if (op == LGT_CMD_WORK_OR_SLEEP)
-			{
-				extern u8 need_sleep;
-				extern u8 need_sleep_pre;
-				if(params[0] == DUTY_CMD_WORK){
-					if(need_sleep && mesh_user_cmd_idx == 0){
-						extern void send_duty_cmd(u8 cmd_type);
-						send_duty_cmd(DUTY_CMD_WORK);
-					}
-                	hb_timeout_pre = need_sleep_pre = need_sleep = 0;
-				}else if(params[0] == DUTY_CMD_SLEEP){//sleep,not use yet
-                	need_sleep_pre = 1;
-				}else if(params[0] == DUTY_CMD_HB){
-					#if 0
-					if(!is_ble_connecting()){
-						light_onoff_hw(0);
-						sleep_us(100*1000);
-						light_onoff_hw(1);
-						sleep_us(100*1000);
-						light_onoff_hw(0);
-						sleep_us(100*1000);
-						light_onoff_hw(1);
-					}
-					#endif
-					//last_rcv_hb_time = clock_time() | 1;
-				}
-			}
-#endif
-#if(FEATURE_FRIEND_EN)
-            else if (op == LGT_CMD_FRIENDSHIP){
-                mesh_pkt_t *pkt = CONTAINER_OF(pp->sno,mesh_pkt_t,sno);
-                fn_rx_friendship_cmd_proc(pkt);
-            }
-#endif
-        }
+   	if(op_cmd_len == op_type_3)
+	{
+		u_sprintf(ppbuf,"+DATA:%02x%02x,%d,",pp->src[1],pp->src[0],op_cmd[1]);
+		at_print(ppbuf);
+		at_send(params,op_cmd[1]);
+		at_print("\r\n");
     }
 }
 
@@ -1427,15 +1147,6 @@ void light_user_func(void){
 #if(MESH_PAIR_ENABLE)
 	mesh_pair_proc_effect();
 #endif
-    
-#if(BQB_EN)	// trigger to BQB mode, user should redefine here
-	static u32 bqb_start_time = 0;
-    if(!bqb_en_flag && !bqb_start_time && clock_time_exceed(bqb_start_time, 5000*1000)){
-        bqb_start_time = clock_time() | 1;
-		analog_write(rega_bqb_reboot, BQB_MODE_FLAG);
-		light_sw_reboot();
-    }
-#endif
 
 #if 0// deepsleep timer wakeup -- demo code
 	static u32 deep_time = 0;
@@ -1465,19 +1176,6 @@ void main_loop(void)
 	
     // simple_sleep_duty_cycle();
 
-#if(BQB_EN)
-	if(bqb_en_flag == 1){
-	    static u8 irq_flag = 1;
-	    if(irq_flag){
-	        irq_flag = 0;
-            irq_disable();
-	    }
-		extern void main_loop_bqb(void);
-		main_loop_bqb();
-		return;
-	}
-#endif
-
 	//flash_protect_debug();
 	
 #if(ALARM_EN)
@@ -1488,7 +1186,7 @@ void main_loop(void)
 	scene_handle();
 #endif	
     
-	light_sim_light2light();
+	//light_sim_light2light();
 	//light_sim_notify();
 #if(LIGHT_NOTIFY_MESH_EN)
 	light_sim_notify_mesh();
@@ -1623,14 +1321,6 @@ void user_init_peripheral(int retention_flag)
 	}
 #endif
 
-#if I2C_HW_MODOULE_EN   // I2C init
-    #if I2C_MASTER_MODE
-    i2c_master_init((0x44<<1), 8);//set clk to 500k
-    i2c_gpio_set(I2C_GPIO_GROUP_C0C1);
-    #else
-    //// slave mode
-    #endif
-#endif
 
 #if FN_DEBUG_PIN_EN
     fn_debug_gpio_init();
@@ -1647,17 +1337,6 @@ void  user_init(void)
         gpio_set_input_en(dbg_pin[i], 0);
         gpio_set_output_en(dbg_pin[i], 1);
     	gpio_write(dbg_pin[i], 0);
-	}
-#endif
-	
-#if(BQB_EN)
-	if(BQB_MODE_FLAG == analog_read(rega_bqb_reboot)){
-		#if(MODULE_WATCHDOG_ENABLE)
-		wd_stop();
-		#endif
-		Bqb_Init();
-		bqb_en_flag = 1;
-		return;
 	}
 #endif
 

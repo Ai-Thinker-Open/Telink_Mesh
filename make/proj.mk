@@ -17,6 +17,7 @@ OBJS += $(OUT_PATH)/proj/common/log.o
 OBJS += $(OUT_PATH)/proj/common/mempool.o 
 OBJS += $(OUT_PATH)/proj/common/mmem.o 
 OBJS += $(OUT_PATH)/proj/common/printf.o 
+OBJS += $(OUT_PATH)/proj/common/u_printf.o 
 OBJS += $(OUT_PATH)/proj/common/qsort.o 
 OBJS += $(OUT_PATH)/proj/common/selection_sort.o 
 OBJS += $(OUT_PATH)/proj/common/string.o 

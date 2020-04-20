@@ -88,7 +88,7 @@ void at_print(char * str)
 		{
 			uart_Send(&T_txdata_user);
 			T_txdata_user.len = 0;
-			// WaitMs(20);
+			WaitMs(20);
 		}
 	}
 
@@ -96,6 +96,44 @@ void at_print(char * str)
 	{
 		uart_Send(&T_txdata_user);
 		T_txdata_user.len = 0;
-		// WaitMs(20);
+		WaitMs(20);
+	}
+}
+
+unsigned char hextab[16] = { '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+void at_print_hexstr(char * data, u32 len)
+{
+	unsigned char buf[128] = { 0 };
+	for(int i =0; i < len; i ++)
+	{
+		buf[i*3] = hextab[(data[i] >> 4)];
+		buf[i*3 +1] = hextab[(data[i]&0xf)];
+		buf[i*3 +2] = ' ';
+	}
+	at_print((char*)buf);
+}
+
+void at_send(char * data, u32 len)
+{
+	while(len > UART_DATA_LEN)
+	{
+		memcpy(T_txdata_user.data, data,  UART_DATA_LEN);
+		data += UART_DATA_LEN;
+		len -= UART_DATA_LEN;
+
+		T_txdata_user.len = UART_DATA_LEN;
+
+		uart_Send(&T_txdata_user);
+		T_txdata_user.len = 0;
+		WaitMs(20);
+	}
+
+	if(len > 0)
+	{
+		memcpy(T_txdata_user.data, data,  len);
+		T_txdata_user.len = len;
+		uart_Send(&T_txdata_user);
+		T_txdata_user.len = 0;
+		WaitMs(20);
 	}
 }
