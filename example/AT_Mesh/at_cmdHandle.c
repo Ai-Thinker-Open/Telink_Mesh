@@ -14,6 +14,8 @@
 
 #include "at_cmd.h"
 
+#include "tinyFlash/tinyFlash.h"
+
 #define AT_VERSION "V0.1"
 
 #define STORAGE_NAME 1
@@ -438,7 +440,8 @@ static unsigned char atCmd_Addr(char *pbuf,  int mode, int lenth)
 {
 	if(mode == AT_CMD_MODE_SET)
 	{
-		device_address = STR2U16(pbuf);
+		device_address = HEX2U16(pbuf);
+		tinyFlash_Write(2, &device_address, 2); //存储ADDR
 		return 0;
 	}
 	else if(mode == AT_CMD_MODE_READ)

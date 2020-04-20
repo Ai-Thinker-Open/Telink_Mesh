@@ -33,6 +33,8 @@
 #include "proj/mcu/register.h"
 #include "proj/common/u_printf.h"
 
+#include "tinyFlash/tinyFlash.h"
+
 #define LED_INDICATE_VAL    (0xff)
 
 #if WORK_SLEEP_EN
@@ -1462,6 +1464,11 @@ void  user_init(void)
 #if (DUAL_MODE_ADAPT_EN)
     dual_mode_sig_mesh_par_init();
 #endif
+	
+	tinyFlash_Init(0x78000,0x4000); //初始化KV存储系统
+
+	unsigned char len = 0;
+	tinyFlash_Read(2, &device_address, &len); //读取ADDR
 
 	at_print("  \r\nAi-Thinker AT Mesh\r\nready\r\n");
 }

@@ -61,6 +61,7 @@ LS_FLAGS := $(TEL_PATH)/SDK1O/boot.link
 -include $(TEL_PATH)/make/boot.mk
 -include $(TEL_PATH)/make/proj.mk
 -include $(TEL_PATH)/make/vendor.mk
+-include $(TEL_PATH)/make/tinyFlash.mk
 
 
 #include Project makefile
