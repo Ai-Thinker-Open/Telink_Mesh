@@ -309,11 +309,11 @@ static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
 	#if 1
 	while(data_len > 0)
 	{
-		if(data_len > 15)
+		if(data_len > 16)
 		{
-			at_mesh_tx_cmd(addr_dst, tmp, 15);
-			data_len -= 15;
-			tmp +=15;
+			at_mesh_tx_cmd(addr_dst, tmp, 16);
+			data_len -= 16;
+			tmp +=16;
 		}
 		else
 		{

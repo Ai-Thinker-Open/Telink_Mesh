@@ -850,7 +850,7 @@ void rf_link_data_callback (u8 *p)
 	char ppbuf[128] = { 0 };
 	u_sprintf(ppbuf,"+DATA:%02x%02x,%d,",pp->src[1],pp->src[0], pp->val[1]);
 	at_print(ppbuf);
-	at_send(pp->val + 3,pp->val[1]);
+	at_send(pp->val + 2, pp->val[1]);
 	at_print("\r\n");
 }
 

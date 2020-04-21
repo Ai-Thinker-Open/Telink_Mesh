@@ -4081,7 +4081,7 @@ void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len)
 
     (&pkt.op)[1] = len;
 	//pkt.vendor_id = VENDOR_ID;
-	memcpy(pkt.par, data, len);
+	memcpy(pkt.par - 1, data, len);
 	pkt.ttl = 2;
     fn_mesh_enc_pkt(&pkt);
 
