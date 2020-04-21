@@ -4052,3 +4052,40 @@ void register_mesh_node_rcv_online_callback (void *p)
 }
 //**************************end OPPLE callback********************************************/
 
+static int fn_cmd_sno;
+void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len)
+{
+    if(0 == fn_cmd_sno){
+        fn_cmd_sno = get_sno_rand_base();
+    }
+
+    fn_cmd_sno ++;
+
+    u8 r = irq_disable();
+    static mesh_pkt_t pkt = {0};    // use global now, comfirm later.
+
+    //mesh_pkt_assemble(&pkt, (fn_cmd_sno++), dst, 0x3F, data, len, 0);
+
+    memset((u8 *)&pkt, 0x00, sizeof(mesh_pkt_t));
+	pkt.dma_len = 39;//26 + len;
+    pkt.type = FLG_BLE_LIGHT_DATA;
+    pkt.rf_len = pkt.dma_len - 2;
+    pkt.l2capLen = pkt.dma_len - 6;
+    pkt.chanId = FLG_RF_MESH_CMD;
+    pkt.src_tx = device_address;
+    pkt.handle1 = 0;
+    memcpy(pkt.sno, &fn_cmd_sno, sizeof(pkt.sno));
+	pkt.src_adr = device_address;
+	pkt.dst_adr = dst;
+	pkt.op = 0x3F | 0xC0;
+
+    (&pkt.op)[1] = len;
+	//pkt.vendor_id = VENDOR_ID;
+	memcpy(pkt.par, data, len);
+	pkt.ttl = 2;
+    fn_mesh_enc_pkt(&pkt);
+
+    mesh_send_command((u8 *)&pkt, CHANEL_ALL, 3);
+
+    irq_restore(r);
+}

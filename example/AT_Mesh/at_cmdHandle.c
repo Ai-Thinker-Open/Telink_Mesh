@@ -70,7 +70,7 @@ u8 HEX2BIN(u8 * p_hexstr, u8 * p_binstr)
 	return bin_len;
 }
 
-u8 HEX2U16(u8 * p_hexstr) //将16进制字符串转换成U16类型的整数
+u16 HEX2U16(u8 * p_hexstr) //将16进制字符串转换成U16类型的整数
 {
 	u8 hexStr_len = strlen((char *)p_hexstr);
 	u16 numBer = 0;
@@ -85,7 +85,7 @@ u8 HEX2U16(u8 * p_hexstr) //将16进制字符串转换成U16类型的整数
 	return numBer;
 }
 
-u8 STR2U16(u8 * p_hexstr) //将10进制字符串转换成U16类型的整数
+u16 STR2U16(u8 * p_hexstr) //将10进制字符串转换成U16类型的整数
 {
 	u8 hexStr_len = strlen((char *)p_hexstr);
 	u16 numBer = 0;
@@ -306,74 +306,39 @@ static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
 
 	u16 data_len = STR2U16(pbuf); //获取数据长度
 
-    static int cmd_sno = 0;
-    cmd_sno = clock_time() + device_address;
+	#if 1
+	while(data_len > 0)
+	{
+		if(data_len > 15)
+		{
+			at_mesh_tx_cmd(addr_dst, tmp, 15);
+			data_len -= 15;
+			tmp +=15;
+		}
+		else
+		{
+			at_mesh_tx_cmd(addr_dst, tmp, data_len);
+			data_len = 0;
+		}
+		sleep_us(150 * 1000);
+	}
+	#else
+	static int cmd_sno = 0;
+	cmd_sno = clock_time() + device_address;
 
 	tmp -= 3;
+	tmp[0] = 0x3f|0xc0;
+	tmp[1] = data_len;
+	mesh_push_user_command(cmd_sno++, addr_dst, tmp, 13);
+	#endif
 
-    tmp[0] = LGT_CMD_LIGHT_ONOFF | 0xc0;
-
-    tmp[1] = data_len; //本包数据长度
-    tmp[2] = 0x55;  //是否需要分包
-
-
-    mesh_push_user_command(cmd_sno++, addr_dst, tmp, data_len + 3);
 	return 0;
 }
 
 //用于测试开发板
 static unsigned char atCmd_Board_test(char *pbuf,  int mode, int lenth)
 {
-	gpio_set_func(GPIO_PC2, AS_GPIO);
-	gpio_set_func(GPIO_PC3, AS_GPIO);
-	gpio_set_func(GPIO_PC4, AS_GPIO);
-	gpio_set_func(GPIO_PB4, AS_GPIO);
-	gpio_set_func(GPIO_PB5, AS_GPIO);
 
-	gpio_set_output_en(GPIO_PC2, 1);//enable output
-	gpio_set_output_en(GPIO_PC3, 1);//enable output
-	gpio_set_output_en(GPIO_PC4, 1);//enable output
-	gpio_set_output_en(GPIO_PB4, 1);//enable output
-	gpio_set_output_en(GPIO_PB5, 1);//enable output
-
-	gpio_set_input_en(GPIO_PC2, 0);//disenable input
-	gpio_set_input_en(GPIO_PC3, 0);//disenable input
-	gpio_set_input_en(GPIO_PC4, 0);//disenable input
-	gpio_set_input_en(GPIO_PB4, 0);//disenable input
-	gpio_set_input_en(GPIO_PB5, 0);//disenable input
-
-	while(1)
-	{
-		gpio_write(GPIO_PC2,1);
-		gpio_write(GPIO_PC3,0);
-		gpio_write(GPIO_PC4,0);
-		gpio_write(GPIO_PB4,0);
-		gpio_write(GPIO_PB5,0); WaitMs(200);
-
-		gpio_write(GPIO_PC2,0);
-		gpio_write(GPIO_PC3,1);
-		gpio_write(GPIO_PC4,0);
-		gpio_write(GPIO_PB4,0);
-		gpio_write(GPIO_PB5,0); WaitMs(200);
-
-		gpio_write(GPIO_PC2,0);
-		gpio_write(GPIO_PC3,0);
-		gpio_write(GPIO_PC4,1);
-		gpio_write(GPIO_PB4,0);
-		gpio_write(GPIO_PB5,0); WaitMs(200);
-
-		gpio_write(GPIO_PC2,0);
-		gpio_write(GPIO_PC3,0);
-		gpio_write(GPIO_PC4,0);
-		gpio_write(GPIO_PB4,1);
-		gpio_write(GPIO_PB5,0); WaitMs(200);
-
-		gpio_write(GPIO_PC2,0);
-		gpio_write(GPIO_PC3,0);
-		gpio_write(GPIO_PC4,0);
-		gpio_write(GPIO_PB4,0);
-		gpio_write(GPIO_PB5,1); WaitMs(200);
-	}
 }
 
 static unsigned char atCmd_MeshName(char *pbuf,  int mode, int lenth)

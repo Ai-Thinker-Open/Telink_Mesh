@@ -844,23 +844,14 @@ void rf_link_data_callback (u8 *p)
 		p_vendor_rf_link_data_callback(p);
 		return;
 	}
-	u8 op = 0;
-    u8 op_cmd[8] = {0};
-    u8 op_cmd_len = 0;
-    u8 params[16] = {0};
-    u8 params_len = 0;
+
     rf_packet_att_value_t *pp = (rf_packet_att_value_t*)(((ll_packet_l2cap_data_t*)(p))->value);
-    rf_link_get_op_para(p, op_cmd, &op_cmd_len, params, &params_len, 1);
 
 	char ppbuf[128] = { 0 };
-
-   	if(op_cmd_len == op_type_3)
-	{
-		u_sprintf(ppbuf,"+DATA:%02x%02x,%d,",pp->src[1],pp->src[0],op_cmd[1]);
-		at_print(ppbuf);
-		at_send(params,op_cmd[1]);
-		at_print("\r\n");
-    }
+	u_sprintf(ppbuf,"+DATA:%02x%02x,%d,",pp->src[1],pp->src[0], pp->val[1]);
+	at_print(ppbuf);
+	at_send(pp->val + 3,pp->val[1]);
+	at_print("\r\n");
 }
 
 int rf_link_response_callback (u8 *p, int dst_unicast)
