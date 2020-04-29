@@ -88,21 +88,27 @@ void vendor_set_adv_data(void){
 }
 
 void set_vendor_function(void){
-	return;
+	//return;
 
-	p_vendor_rf_led_ota_ok 			= &vendor_rf_led_ota_ok;
-	p_vendor_rf_led_ota_error		= &vendor_rf_led_ota_error;
-	p_vendor_irq_timer1				= &vendor_irq_timer1;
-	p_vendor_proc_led 				= &vendor_proc_led;
-	p_vendor_rf_link_data_callback	= &vendor_rf_link_data_callback;
+	// p_vendor_rf_led_ota_ok 			= &vendor_rf_led_ota_ok;
+	// p_vendor_rf_led_ota_error		= &vendor_rf_led_ota_error;
+	// p_vendor_irq_timer1				= &vendor_irq_timer1;
+	// p_vendor_proc_led 				= &vendor_proc_led;
+	//p_vendor_rf_link_data_callback	= &vendor_rf_link_data_callback;
 	p_vendor_user_init				= &vendor_user_init;
 
 	extern attribute_t gAttributes_vendor[];
-	extern attribute_t *p_vendor_att;
-	p_vendor_att = gAttributes_vendor;
 
-	//init some parameters
-    extern void software_version();
-    software_version();
+	extern attribute_t my_Attributes[];
+
+	extern attribute_t *p_vendor_att;
+
+	//p_vendor_att = gAttributes_vendor;
+
+	p_vendor_att = my_Attributes;
+
+	// //init some parameters
+    // extern void software_version();
+    // software_version();
 }
 
