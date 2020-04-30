@@ -176,31 +176,31 @@ static unsigned char atCmd_Baud(char *pbuf,  int mode, int lenth)
 
 static unsigned char atCmd_Name(char *pbuf,  int mode, int lenth)
 {
-	// if(mode == AT_CMD_MODE_READ)
-	// {
-	// 	memset(at_print_buf, 0, 64);
+	if(mode == AT_CMD_MODE_READ)
+	{
+		// memset(at_print_buf, 0, 64);
 
-	// 	at_print("\r\n+NAME:");
+		// at_print("\r\n+NAME:");
 
-	// 	if(my_scanRsp[1] == 0x09) //客户自定义的蓝牙设备名称
-	// 	{
-	// 		memcpy(at_print_buf, my_scanRsp+2, my_scanRsp[0] -1);
-	// 	}
-	// 	else
-	// 	{
-	// 		memcpy(at_print_buf, tbl_scanRsp+2, 10);
-	// 	}
+		// if(my_scanRsp[1] == 0x09) //客户自定义的蓝牙设备名称
+		// {
+		// 	memcpy(at_print_buf, my_scanRsp+2, my_scanRsp[0] -1);
+		// }
+		// else
+		// {
+		// 	memcpy(at_print_buf, tbl_scanRsp+2, 10);
+		// }
 		
-	// 	at_print((char*)at_print_buf);
+		// at_print((char*)at_print_buf);
 
-	// 	return 0;
-	// }
+		return 0;
+	}
 
-	// if(mode == AT_CMD_MODE_SET)
-	// {
-	// 	tinyFlash_Write(STORAGE_NAME, (unsigned char*)pbuf, lenth);
-	// 	return 0;
-	// }
+	if(mode == AT_CMD_MODE_SET)
+	{
+		tinyFlash_Write(3, (unsigned char*)pbuf, lenth);
+		return 0;
+	}
 	return 1;
 }
 
@@ -268,7 +268,7 @@ static unsigned char atCmd_Mac(char *pbuf,  int mode, int lenth)
 	return 1;
 }
 
-extern u32 device_in_connection_state;
+extern u8 	slave_link_connected;
 static unsigned char atCmd_State(char *pbuf,  int mode, int lenth)
 {
 	// if(device_in_connection_state ==0)
@@ -281,6 +281,7 @@ static unsigned char atCmd_State(char *pbuf,  int mode, int lenth)
 	// }
 	return 0;
 }
+
 
 //AT+SEND=46,4646464646546\r\n
 static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
@@ -306,18 +307,36 @@ static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
 
 	u16 data_len = STR2U16(pbuf); //获取数据长度
 
+	pbuf[0] = 0; //handle 0：module 2 module，handle 1：modul 2 app
+
+	if(addr_dst == 0xfff0) //发送到手机的数据
+	{
+		if(slave_link_connected) //本模块已经与手机连接
+		{
+			extern u8 mesh_notify_enc_enable;
+			mesh_notify_enc_enable = 0;
+
+			send_data_to_app(tmp, data_len, device_address);
+		}
+		else
+		{
+			pbuf[0] = 1; // 委托别的模块发送数据到APP
+			addr_dst = 0xFFFF;//降地址设置为广播地址 
+		}
+	}
+
 	#if 1
 	while(data_len > 0)
 	{
 		if(data_len > 16)
 		{
-			at_mesh_tx_cmd(addr_dst, tmp, 16);
+			at_mesh_tx_cmd(addr_dst, tmp, 16, pbuf[0]);
 			data_len -= 16;
 			tmp +=16;
 		}
 		else
 		{
-			at_mesh_tx_cmd(addr_dst, tmp, data_len);
+			at_mesh_tx_cmd(addr_dst, tmp, data_len, pbuf[0]);
 			data_len = 0;
 		}
 		sleep_us(150 * 1000);

@@ -4053,7 +4053,7 @@ void register_mesh_node_rcv_online_callback (void *p)
 //**************************end OPPLE callback********************************************/
 
 static int fn_cmd_sno;
-void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len)
+void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len, u8 app)
 {
     if(0 == fn_cmd_sno){
         fn_cmd_sno = get_sno_rand_base();
@@ -4078,6 +4078,8 @@ void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len)
 	pkt.src_adr = device_address;
 	pkt.dst_adr = dst;
 	pkt.op = 0x3F | 0xC0;
+
+    if(app) pkt.chanId = FLG_RF_MESH_APP;
 
     (&pkt.op)[1] = len;
 	//pkt.vendor_id = VENDOR_ID;

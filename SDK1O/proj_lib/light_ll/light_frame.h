@@ -246,6 +246,7 @@ typedef struct{
 #define		FLG_RF_STATUS_DATA		0xffff
 #define		FLG_RF_ALARM_TIME_DATA  0xeeff
 #define		FLG_RF_MESH_CMD         0xff04
+#define		FLG_RF_MESH_APP         0xfff0
 
 typedef struct{
 	u32 dma_len;            //won't be a fixed number as previous, should adjust with the mouse package number

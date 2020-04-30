@@ -653,6 +653,45 @@ int light_notify(u8 *p, u8 len, u8* p_src){
     return err;
 }
 
+int send_data_to_app(u8 *data, u8 len, u16 addr)
+{
+    if(slave_link_connected == 0) return 1;
+
+	int err = 1;
+        
+	rf_packet_att_cmd_t pkt_notify = {
+			0x1d,						// dma_len
+			0x02,						// type
+			0x1b,						// rf_len
+			0x17,						// u16
+			0x04,						// chanid
+			0x1b,						// notify
+			0x0A, 0x00, 				// status handler
+			{0, 0, 0,					// seqno
+				0, 0,						// src
+				0, 0,						// dst
+				0, 0, 0,
+			}
+	};
+
+	err = u_sprintf(pkt_notify.value,"%x,",addr);
+
+	pkt_notify.dma_len = 9 + len + err;
+	pkt_notify.rf_len = pkt_notify.dma_len - 2;
+    pkt_notify.l2capLen = pkt_notify.dma_len - 6;
+
+	memcpy(pkt_notify.value + err, data, len);
+	u8 r = irq_disable();
+	if (is_add_packet_buf_ready()){
+		if(0 != rf_link_add_tx_packet ((u32)(&pkt_notify))){
+			err = 0;
+		}
+	}
+	irq_restore(r);
+
+    return err;
+}
+
 void light_sim_notify(void){    // just local light can use.
 	static u32 cur_time = 0;
 	static u8 cnt = 0;
@@ -846,6 +885,18 @@ void rf_link_data_callback (u8 *p)
 	}
 
     rf_packet_att_value_t *pp = (rf_packet_att_value_t*)(((ll_packet_l2cap_data_t*)(p))->value);
+
+	if(((ll_packet_l2cap_data_t*)(p))->chanId == FLG_RF_MESH_APP) //要发送到手机的数据
+	{
+		if(slave_link_connected) //如果已连接手机
+		{
+			extern u8 mesh_notify_enc_enable;
+			mesh_notify_enc_enable = 0;
+
+			send_data_to_app(pp->val + 2, pp->val[1], pp->src[1] * 256 + pp->src[0]);
+		}
+		return;
+	}
 
 	char ppbuf[128] = { 0 };
 	u_sprintf(ppbuf,"+DATA:%02x%02x,%d,",pp->src[1],pp->src[0], pp->val[1]);
@@ -1456,10 +1507,19 @@ void  user_init(void)
     dual_mode_sig_mesh_par_init();
 #endif
 	
-	tinyFlash_Init(0x78000,0x4000); //初始化KV存储系统
+	tinyFlash_Init(0x7D000,0x4000); //初始化KV存储系统
 
 	unsigned char len = 0;
 	tinyFlash_Read(2, &device_address, &len); //读取ADDR
+
+	len = 0;
+	char dev_name[32] = { 0 };
+	tinyFlash_Read(3, dev_name, &len); //读取设备名称
+
+	if(len)
+	{
+		rf_link_slave_set_adv_mesh_name(dev_name, len);
+	}
 
 	at_print("  \r\nAi-Thinker AT Mesh\r\nready\r\n");
 }
