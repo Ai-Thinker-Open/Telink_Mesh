@@ -23,13 +23,42 @@ AT Mesh透固件块支持Mesh自组网，支持手机传送数据到手机。
 |14|AT+SEND|发送数据|
 |15|+DATA|收到数据|
 
+## 网络密钥
+
+此Mesh网络采用```MESHNAME```和```MESHPWD```进行加密(可对应于SigMesh中的```NetworkKey```和```ApplicationKey```)，<font color='red'> 只要两个设备的```MESHNAME```和```MESHPWD```相同，即可互发数据。</font>模块出厂默认的  ```MESHNAME```是```at_mesh```, 默认的```MESHPWD```是```123456```, 用户可以在```vendor/commom/user_config.h```文件中修改这些默认值。
+
+模块出厂后，亦可通过AT指令配置```MESHNAME```和```MESHPWD```，指令如下：
+
+设置网络名称：
+
+    AT+MESHNAME=my_mesh123456
+
+设置网络密码：
+
+    AT+MESHPWD=my_password
+
+> 备注：```MESHNAME```和```MESHPWD```最大长度为16个字节。
+
 ## 使用示例
 
 查询模块地址：
+> 首次上电会生成一个随机地址
 
     AT+ADDR?
     +ADDR:00a8
 
-发送数据：(向地址为a8的模块发送五个数据，内容为12345)
+设置模块地址:
 
-    AT+SEND:a8,5,12345
+    AT+ADDR=53
+
+模块间发送数据：(向地址为a8的模块发送五个数据，内容为12345)
+
+    AT+SEND=a8,5,12345
+
+模块向手机发送数据:
+> 手机的地址定义为：0xFFF0，只要手机连上Mesh网络中的任一设备，网内的其他设备都可以与手机通信(即使该设备没有直接与手机连接)
+
+    AT+SEND=FFF0,5,12345
+
+手机向模块发送数据：
+> 目前手机只能与与之相连的模块通信，暂不支持与网内其他模组通信。

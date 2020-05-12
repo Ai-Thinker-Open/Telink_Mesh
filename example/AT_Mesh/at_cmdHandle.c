@@ -321,7 +321,7 @@ static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
 		else
 		{
 			pbuf[0] = 1; // 委托别的模块发送数据到APP
-			addr_dst = 0xFFFF;//降地址设置为广播地址 
+			addr_dst = 0xFFFF;//将地址设置为广播地址(因为不知道目前是哪个模块与手机连接)
 		}
 	}
 
