@@ -467,6 +467,26 @@ static unsigned char atCmd_Ttl(char *pbuf,  int mode, int lenth)
 	return 2;
 }
 
+static unsigned char atCmd_Adv(char *pbuf,  int mode, int lenth)
+{
+	extern u8 send_adv_flag;
+
+	if(mode == AT_CMD_MODE_SET)
+	{
+		send_adv_flag =  pbuf[0] == '0'?0:1;
+		tinyFlash_Write(1, &send_adv_flag, 1); //存储ADV标志
+		return 0;
+	}
+	else if(mode == AT_CMD_MODE_READ)
+	{
+		char buff[32] = { 0 };
+		u_sprintf(buff,"+ADV:%d",send_adv_flag);
+		at_print(buff);
+		return 0;
+	}
+	return 2;
+}
+
 _at_command_t gAtCmdTb_writeRead[] =
 { 
 	{ "BAUD", 	atCmd_Baud,	"Set/Read BT Baud\r\n"},
@@ -476,6 +496,7 @@ _at_command_t gAtCmdTb_writeRead[] =
 	{ "MESHPWD",atCmd_MeshPwd,	"Set/Read BT MAC\r\n"},
 	{ "ADDR", 	atCmd_Addr,	"Set/Read BT MAC\r\n"},
 	{ "TTL", 	atCmd_Ttl,	"Set/Read Ttl\r\n"},
+	{ "ADV", 	atCmd_Adv,	"Set/Read Adv\r\n"},
 	{ "SEND", 	atCmd_Send, "Send data to phone\r\n"},
 	{0, 	0,	0}
 };

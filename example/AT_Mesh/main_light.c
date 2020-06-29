@@ -1527,11 +1527,16 @@ void  user_init(void)
     extern u32 set_mesh_info_time;// unit: s
     set_mesh_info_time = 30;
     #endif
-    
-    #if 0
+
+	unsigned char len = 0;
+
     extern u8 send_adv_flag; // default value is 1, 0 means don't send adv pkt.
-    send_adv_flag = 0;
-    #endif
+
+	if(tinyFlash_Read(1, &send_adv_flag, &len) == 0) //读取ADV标志成功
+	{
+		if(send_adv_flag != 0) send_adv_flag = 1;
+	}
+	else send_adv_flag = 1; //默认开启广播
     
     register_mesh_ota_master_ui(mesh_ota_master_led);   //  mesh_ota_master_led() will be called when sending mesh ota data.
 
@@ -1543,7 +1548,6 @@ void  user_init(void)
     dual_mode_sig_mesh_par_init();
 #endif
 
-	unsigned char len = 0;
 	tinyFlash_Read(2, &device_address, &len); //读取ADDR
 
 	//sleep_us(device_address * 10000);
