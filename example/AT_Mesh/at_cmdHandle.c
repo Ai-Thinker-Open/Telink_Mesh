@@ -441,6 +441,32 @@ static unsigned char atCmd_Addr(char *pbuf,  int mode, int lenth)
 	return 2;
 }
 
+extern u8 g_ttl;
+static unsigned char atCmd_Ttl(char *pbuf,  int mode, int lenth)
+{
+	if(mode == AT_CMD_MODE_SET)
+	{
+		u8 ttl =  pbuf[0] - '0';
+		if(ttl > 8) return 2;
+
+		g_ttl = ttl;
+		tinyFlash_Write(3, &g_ttl, 1); //存储ADDR
+
+		extern void	rf_link_set_max_relay (u8 num);
+		rf_link_set_max_relay (g_ttl);
+
+		return 0;
+	}
+	else if(mode == AT_CMD_MODE_READ)
+	{
+		char buff[32] = { 0 };
+		u_sprintf(buff,"+TTL:%d",g_ttl);
+		at_print(buff);
+		return 0;
+	}
+	return 2;
+}
+
 _at_command_t gAtCmdTb_writeRead[] =
 { 
 	{ "BAUD", 	atCmd_Baud,	"Set/Read BT Baud\r\n"},
@@ -449,6 +475,7 @@ _at_command_t gAtCmdTb_writeRead[] =
 	{ "MESHNAME",atCmd_MeshName,"Set/Read BT MAC\r\n"},
 	{ "MESHPWD",atCmd_MeshPwd,	"Set/Read BT MAC\r\n"},
 	{ "ADDR", 	atCmd_Addr,	"Set/Read BT MAC\r\n"},
+	{ "TTL", 	atCmd_Ttl,	"Set/Read Ttl\r\n"},
 	{ "SEND", 	atCmd_Send, "Send data to phone\r\n"},
 	{0, 	0,	0}
 };

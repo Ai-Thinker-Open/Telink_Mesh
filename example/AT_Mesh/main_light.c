@@ -1082,7 +1082,7 @@ int rf_link_response_callback (u8 *p, int dst_unicast)
 	return 1;
 }
 
-
+u8 g_ttl = 3, ttl_data_len = 0;
 void light_init_default(void){
 	extern u8 advData[3];
 	#if ADV_UUID
@@ -1153,8 +1153,13 @@ void light_init_default(void){
 	
 	usb_dp_pullup_en (1);
 
+	if((tinyFlash_Read(3, &g_ttl, &ttl_data_len) != 0) || (g_ttl > 8))
+	{
+		g_ttl = 3;
+	}
+
 	extern void	rf_link_set_max_relay (u8 num);
-	rf_link_set_max_relay (3);
+	rf_link_set_max_relay (g_ttl);
 	
 	light_hw_timer0_config();
 	light_hw_timer1_config();
@@ -1431,6 +1436,8 @@ void  user_init(void)
 	extern void set_vendor_function(void);
 	set_vendor_function();
 
+	tinyFlash_Init(0x7D000,0x4000); //初始化KV存储系统
+
 	light_init_default();
     user_init_pwm(0);
 	
@@ -1535,8 +1542,6 @@ void  user_init(void)
 #if (DUAL_MODE_ADAPT_EN)
     dual_mode_sig_mesh_par_init();
 #endif
-	
-	tinyFlash_Init(0x7D000,0x4000); //初始化KV存储系统
 
 	unsigned char len = 0;
 	tinyFlash_Read(2, &device_address, &len); //读取ADDR
