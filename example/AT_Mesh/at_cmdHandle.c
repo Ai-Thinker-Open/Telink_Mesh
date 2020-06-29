@@ -317,6 +317,8 @@ static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
 			mesh_notify_enc_enable = 0;
 
 			send_data_to_app(tmp, data_len, device_address);
+
+			return 0;
 		}
 		else
 		{
@@ -351,7 +353,8 @@ static unsigned char atCmd_Send(char *pbuf,  int mode, int lenth)
 	mesh_push_user_command(cmd_sno++, addr_dst, tmp, 13);
 	#endif
 
-	return 0;
+	if(addr_dst == 0xffff) return 0;
+	return 0xff;
 }
 
 //用于测试开发板

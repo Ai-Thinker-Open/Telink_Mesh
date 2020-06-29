@@ -873,6 +873,8 @@ void light_lum_erase(void){
 	light_lum_store();
 }
 
+int last_sno;
+extern u32 ack_timer;
 #if 1
 void rf_link_data_callback (u8 *p)
 {
@@ -897,12 +899,38 @@ void rf_link_data_callback (u8 *p)
 		}
 		return;
 	}
-
 	char ppbuf[128] = { 0 };
+
+	if(((ll_packet_l2cap_data_t*)(p))->chanId == FLG_RF_MESH_ACK) //上一条数据的ACK
+	{
+		if(memcmp((char*)&last_sno, pp->val + 2, 3) == 0)
+		{
+			last_sno = 0;
+			ack_timer = 0;
+			at_print("OK\r\n");
+		}
+		return;
+	}
+
 	u_sprintf(ppbuf,"+DATA:%02x%02x,%d,",pp->src[1],pp->src[0], pp->val[1]);
 	at_print(ppbuf);
 	at_send(pp->val + 2, pp->val[1]);
 	at_print("\r\n");
+
+	if((pp->dst[1] == 0xff) && (pp->dst[0] == 0xff)) return;
+	at_mesh_tx_cmd(pp->src[1] * 256 + pp->src[0], pp->sno, 3, 2);
+}
+
+void wait_ack_process()
+{
+	if(last_sno == 0) return;
+	if(ack_timer == 0) return;
+	if(clock_time_exceed(ack_timer, 1000*1000)) //等待ACK超时
+	{
+		last_sno = 0;
+		ack_timer = 0;
+		at_print("ERROR(3)\r\n");
+	}
 }
 
 int rf_link_response_callback (u8 *p, int dst_unicast)
@@ -1114,7 +1142,7 @@ void light_init_default(void){
 
 	rf_link_slave_pairing_enable (1);
 	
-	rf_set_power_level_index (MY_RF_POWER_INDEX);
+	rf_set_power_level_index (RF_POWER_P10p46dBm/*MY_RF_POWER_INDEX*/);
 	
 	rf_link_slave_set_buffer (buff_response[0], 48);
 
@@ -1125,8 +1153,8 @@ void light_init_default(void){
 	
 	usb_dp_pullup_en (1);
 
-	//extern void	rf_link_set_max_relay (u8 num);
-	//rf_link_set_max_relay (3);
+	extern void	rf_link_set_max_relay (u8 num);
+	rf_link_set_max_relay (3);
 	
 	light_hw_timer0_config();
 	light_hw_timer1_config();
@@ -1232,6 +1260,7 @@ void main_loop(void)
     
 	//light_sim_light2light();
 	//light_sim_notify();
+	wait_ack_process();
 #if(LIGHT_NOTIFY_MESH_EN)
 	light_sim_notify_mesh();
 #endif	
@@ -1472,7 +1501,7 @@ void  user_init(void)
     sync_time_en(1);
 #endif    
 	device_status_update();
-    mesh_security_enable (1);
+    mesh_security_enable(1);
 	
 	if(!security_enable){
 	    //not_need_login = pair_login_ok = 1;// 1 means not need login when no-security mode.
@@ -1512,6 +1541,8 @@ void  user_init(void)
 	unsigned char len = 0;
 	tinyFlash_Read(2, &device_address, &len); //读取ADDR
 
+	//sleep_us(device_address * 10000);
+
 	len = 0;
 	char dev_name[32] = { 0 };
 	tinyFlash_Read(3, dev_name, &len); //读取设备名称
@@ -1529,7 +1560,7 @@ void  user_init(void)
 _attribute_ram_code_ void user_init_deepRetn(void)
 {
     blc_ll_initBasicMCU();   //mandatory
-	rf_set_power_level_index (MY_RF_POWER_INDEX);
+	rf_set_power_level_index (RF_POWER_P10p46dBm/*MY_RF_POWER_INDEX*/);
     blc_ll_recoverDeepRetention();
     user_init_pwm(1);
     user_init_peripheral(1);

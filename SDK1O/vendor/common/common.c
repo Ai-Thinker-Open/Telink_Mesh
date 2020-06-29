@@ -4052,7 +4052,12 @@ void register_mesh_node_rcv_online_callback (void *p)
 }
 //**************************end OPPLE callback********************************************/
 
+//app = 0， data 2 module
+//app = 1， data 2 app
+//app = 2， data for ack 
 static int fn_cmd_sno;
+extern int last_sno;
+u32 ack_timer = 0;
 void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len, u8 app)
 {
     if(0 == fn_cmd_sno){
@@ -4079,15 +4084,23 @@ void at_mesh_tx_cmd(u16 dst, u8 *data, u8 len, u8 app)
 	pkt.dst_adr = dst;
 	pkt.op = 0x3F | 0xC0;
 
-    if(app) pkt.chanId = FLG_RF_MESH_APP;
+    last_sno = fn_cmd_sno & 0xffffff;
+
+    if(app == 1) pkt.chanId = FLG_RF_MESH_APP;
+    else if (app == 2) pkt.chanId = FLG_RF_MESH_ACK;
 
     (&pkt.op)[1] = len;
 	//pkt.vendor_id = VENDOR_ID;
 	memcpy(pkt.par - 1, data, len);
-	pkt.ttl = 2;
+	pkt.ttl = 5;
     fn_mesh_enc_pkt(&pkt);
 
     mesh_send_command((u8 *)&pkt, CHANEL_ALL, 3);
 
     irq_restore(r);
+
+    if((app == 0) && (dst != 0xffff)) 
+    {
+        ack_timer = clock_time();
+    }
 }
